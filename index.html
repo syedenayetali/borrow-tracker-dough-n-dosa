@@ -1,0 +1,3113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Borrow Tracker - Restaurant Credit Manager</title>
+    <link rel="icon" href="logo.png" type="image/png">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1B5E3F 0%, #2D7A52 100%);
+        min-height: 100vh;
+        padding: 20px;
+        color: #333;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      header {
+        background: linear-gradient(135deg, #1B5E3F 0%, #2D7A52 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      header h1 {
+        font-size: 2.5em;
+        margin-bottom: 5px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      header p {
+        font-size: 0.95em;
+        opacity: 0.9;
+      }
+
+      .sync-status {
+        background: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        position: relative;
+        align-items: center;
+        gap: 10px;
+        z-index: 999;
+        font-size: 0.9em;
+      }
+
+      .sync-status.synced {
+        border-left: 4px solid #28a745;
+      }
+
+      .sync-status.syncing {
+        border-left: 4px solid #ffc107;
+      }
+
+      .sync-status.error {
+        border-left: 4px solid #dc3545;
+      }
+
+      .sync-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #28a745;
+      }
+
+      .sync-status.syncing .sync-indicator {
+        background: #ffc107;
+        animation: pulse 1s infinite;
+      }
+
+      .sync-status.error .sync-indicator {
+        background: #dc3545;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .sync-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .sync-overlay.active {
+        display: flex;
+      }
+
+      .sync-overlay-content {
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+
+      .sync-overlay-spinner {
+        width: 50px;
+        height: 50px;
+        margin: 0 auto 20px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #ffc107;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .sync-overlay-text {
+        font-size: 1.1em;
+        color: #333;
+        font-weight: 500;
+      }
+
+      .loading-spinner {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        z-index: 100;
+        justify-content: center;
+        align-items: center;
+        border-radius: 12px;
+      }
+
+      .customers-section {
+        position: relative;
+      }
+
+      .loading-spinner.active {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #1B5E3F;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .loading-text {
+        color: #1B5E3F;
+        font-weight: 600;
+        font-size: 1em;
+      }
+
+      .login-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #1B5E3F 0%, #2D7A52 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+      }
+
+      .login-container.hidden {
+        display: none;
+      }
+
+      .login-box {
+        background: white;
+        padding: 40px;
+        border-radius: 15px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+      }
+
+      .login-box h1 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 2em;
+      }
+
+      .login-box p {
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 0.95em;
+      }
+
+      .login-input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 1.1em;
+        text-align: center;
+        letter-spacing: 2px;
+        margin-bottom: 20px;
+        box-sizing: border-box;
+      }
+
+      .login-input:focus {
+        outline: none;
+        border-color: #1B5E3F;
+        box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+      }
+
+      .login-button {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #1B5E3F 0%, #2D7A52 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .login-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .login-error {
+        color: #dc3545;
+        font-size: 0.9em;
+        margin-top: 10px;
+        display: none;
+      }
+
+      .login-error.show {
+        display: block;
+      }
+
+      .top-right-controls {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        z-index: 1000;
+      }
+
+      .logout-button {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.95em;
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        transition: all 0.3s ease;
+      }
+
+      .logout-button:hover {
+        background: linear-gradient(135deg, #c82333 0%, #a71d2a 100%);
+        box-shadow: 0 6px 16px rgba(220, 53, 69, 0.5);
+        transform: translateY(-2px);
+      }
+
+      .logout-button:active {
+        transform: translateY(0px);
+      }
+      .user-info {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: white;
+        padding: 10px 16px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        font-size: 0.85em;
+        z-index: 998;
+        font-weight: 600;
+      }
+
+      .user-info.owner {
+        border-left: 4px solid #dc3545;
+        color: #dc3545;
+      }
+
+      .user-info.data-entry {
+        border-left: 4px solid #ffc107;
+        color: #ffc107;
+      }
+
+      .user-info.customer {
+        border-left: 4px solid #28a745;
+        color: #28a745;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .stat-box {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #FFD700;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-sizing: border-box;
+        width: 100%;
+      }
+
+      .stat-label {
+        font-size: 0.85em;
+        color: #666;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        font-weight: 600;
+      }
+
+      .stat-value {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #1B5E3F;
+        color: #1B5E3F;
+      }
+
+      .controls {
+        padding: 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      input[type="text"],
+      input[type="number"] {
+        flex: 1;
+        min-width: 200px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1em;
+      }
+
+      button {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #1B5E3F 0%, #2D7A52 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(27, 94, 63, 0.4);
+        background: linear-gradient(135deg, #2D7A52 0%, #3A9563 100%);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+      }
+
+      .btn-secondary:hover {
+        background: #5a6268;
+        box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+      }
+
+      .btn-danger {
+        background: #dc3545;
+        padding: 8px 12px;
+        font-size: 0.9em;
+      }
+
+      .btn-danger:hover {
+        background: #c82333;
+        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+      }
+
+      .btn-success {
+        background: #28a745;
+        padding: 8px 12px;
+        font-size: 0.9em;
+      }
+
+      .btn-success:hover {
+        background: #218838;
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+      }
+
+      .customers-section {
+        padding: 20px;
+      }
+
+      .customers-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .customer-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .customer-card:hover {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        border-color: #d0d0d0;
+      }
+
+      .customer-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .customer-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+
+      .customer-name {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+      }
+
+      .customer-status {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-weight: 600;
+        text-transform: capitalize;
+      }
+
+      .customer-status.settled {
+        background: #28a745;
+        color: white;
+      }
+
+      .customer-status.unsettled {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .customer-date {
+        font-size: 0.85em;
+        color: #666;
+      }
+
+      .customer-amount {
+        font-size: 1.4em;
+        color: #1B5E3F;
+        font-weight: 700;
+        margin-right: 20px;
+        white-space: nowrap;
+      }
+
+      .customer-amount.amount-debt {
+        color: #dc3545;
+      }
+
+      .customer-amount.amount-settled {
+        color: #28a745;
+      }
+
+      .amount-label {
+        display: none;
+      }
+
+      .customer-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .customer-actions button {
+        flex: 1;
+        min-width: 90px;
+        padding: 8px 12px;
+        font-size: 0.85em;
+      }
+
+      .customer-card-right {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .all-clear-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 0.85em;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .all-clear-btn:hover {
+        background: #218838;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+      }
+
+      .empty-state-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+      }
+
+      /* Skeleton Loader Styles */
+      @keyframes shimmer {
+        0% { background-position: -1000px 0; }
+        100% { background-position: 1000px 0; }
+      }
+
+      .skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 1000px 100%;
+        animation: shimmer 2s infinite;
+        border-radius: 8px;
+      }
+
+      .skeleton-stat-box {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #1B5E3F;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        box-sizing: border-box;
+        width: 100%;
+      }
+
+      .skeleton-stat-label {
+        height: 14px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 1000px 100%;
+        animation: shimmer 2s infinite;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        width: 70%;
+      }
+
+      .skeleton-stat-value {
+        height: 32px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 1000px 100%;
+        animation: shimmer 2s infinite;
+        border-radius: 4px;
+        width: 60%;
+      }
+
+      .skeleton-customer-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .skeleton-customer-name {
+        height: 20px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 1000px 100%;
+        animation: shimmer 2s infinite;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        width: 40%;
+      }
+
+      .skeleton-customer-amount {
+        height: 24px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 1000px 100%;
+        animation: shimmer 2s infinite;
+        border-radius: 4px;
+        width: 30%;
+      }
+
+      .skeleton-chart {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+      }
+
+      .skeleton-chart-title {
+        height: 18px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 1000px 100%;
+        animation: shimmer 2s infinite;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        width: 50%;
+      }
+
+      .skeleton-chart-bars {
+        height: 250px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 1000px 100%;
+        animation: shimmer 2s infinite;
+        border-radius: 4px;
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .modal-header {
+        font-size: 1.8em;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #333;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 15px;
+      }
+
+      .modal-body {
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1em;
+      }
+
+      .transaction-history {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 2px solid #f0f0f0;
+      }
+
+      .transaction-item {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .transaction-type {
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85em;
+      }
+
+      .transaction-type.purchase {
+        background: #ffe5e5;
+        color: #d9534f;
+      }
+
+      .transaction-type.payment {
+        background: #e5f5e5;
+        color: #5cb85c;
+      }
+
+      .transaction-date {
+        font-size: 0.85em;
+        color: #999;
+      }
+
+      .transaction-amount {
+        font-weight: bold;
+        font-size: 1.1em;
+      }
+
+      .transaction-amount.purchase {
+        color: #d9534f;
+      }
+
+      .transaction-amount.payment {
+        color: #5cb85c;
+      }
+
+      .modal-footer {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .no-transactions {
+        text-align: center;
+        color: #999;
+        padding: 20px;
+        font-style: italic;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+
+        .container {
+          border-radius: 10px;
+        }
+
+        header {
+          padding: 20px;
+        }
+
+        header h1 {
+          font-size: 1.6em;
+          margin-bottom: 5px;
+        }
+
+        header p {
+          font-size: 0.85em;
+        }
+
+        #logo {
+          height: 70px !important;
+          width: 300px !important;
+        }
+
+        .top-right-controls {
+          flex-direction: column;
+          gap: 10px;
+          position: static;
+          right: auto;
+          top: auto;
+          margin: 15px;
+        }
+
+        .sync-status {
+          width: 100%;
+          justify-content: center;
+          font-size: 0.8em;
+        }
+
+        .logout-button {
+          width: 100%;
+          padding: 10px 16px;
+        }
+
+        button {
+          padding: 10px 16px;
+          font-size: 0.9em;
+          white-space: normal;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+
+        .stats {
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        .stat-box {
+          padding: 15px;
+        }
+
+        .stat-label {
+          font-size: 0.85em;
+        }
+
+        .stat-value {
+          font-size: 1.5em;
+        }
+
+        .controls {
+          flex-direction: column;
+          gap: 10px;
+          padding: 15px;
+        }
+
+        .controls button,
+        .controls input {
+          width: 100%;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        input[type="date"],
+        select {
+          min-width: auto;
+          width: 100%;
+          font-size: 16px;
+          padding: 10px;
+        }
+
+        .customers-list {
+          grid-template-columns: 1fr;
+          gap: 12px;
+          padding: 15px;
+        }
+
+        .customer-card {
+          padding: 12px;
+        }
+
+        .customer-actions {
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .customer-actions button {
+          flex: 1;
+          width: 100%;
+          padding: 8px 12px;
+          font-size: 0.85em;
+        }
+
+        .modal-content {
+          width: 95%;
+          margin: 10px auto;
+          max-height: 85vh;
+          border-radius: 10px;
+        }
+
+        .modal-header {
+          font-size: 1.2em;
+          padding: 12px;
+        }
+
+        .modal-body {
+          padding: 12px;
+          font-size: 0.9em;
+          max-height: 70vh;
+          overflow-y: auto;
+        }
+
+        .modal-footer {
+          flex-direction: column;
+          gap: 10px;
+          padding: 12px;
+        }
+
+        .modal-footer button {
+          width: 100%;
+          padding: 10px 16px;
+        }
+
+        .form-group {
+          margin-bottom: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .form-group label {
+          font-size: 0.85em;
+        }
+
+        /* Purchase section on mobile */
+        .customers-section > div:nth-child(3) {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 15px;
+        }
+
+        .customers-section > div:nth-child(3) > div {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .customers-section > div:nth-child(3) input,
+        .customers-section > div:nth-child(3) button {
+          width: 100%;
+          font-size: 14px;
+        }
+
+        table {
+          font-size: 0.75em;
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+
+        table thead th {
+          padding: 6px 8px;
+          font-size: 0.7em;
+        }
+
+        table tbody td {
+          padding: 6px 8px;
+          font-size: 0.75em;
+        }
+
+        #detailsTransactionHistory tr td {
+          padding: 5px 6px;
+        }
+
+        .login-box {
+          width: 90%;
+          max-width: 100%;
+          padding: 20px;
+          border-radius: 12px;
+        }
+
+        .login-box h1 {
+          font-size: 1.8em;
+          margin-bottom: 15px;
+        }
+
+        .login-input {
+          width: 100%;
+          padding: 12px;
+          font-size: 16px;
+          margin-bottom: 12px;
+        }
+
+        .login-button {
+          width: 100%;
+          padding: 12px;
+          font-size: 1em;
+        }
+
+        #actualChart {
+          height: 300px;
+          margin: 20px 15px;
+        }
+
+        .sync-overlay-content {
+          padding: 30px;
+          min-width: 200px;
+        }
+
+        .sync-overlay-spinner {
+          width: 40px;
+          height: 40px;
+        }
+
+        .sync-overlay-text {
+          font-size: 0.95em;
+        }
+
+        .user-info {
+          padding: 10px;
+          font-size: 0.85em;
+        }
+      }
+
+      @media (max-width: 480px) {
+        body {
+          padding: 8px;
+        }
+
+        header h1 {
+          font-size: 1.3em;
+        }
+
+        #logo {
+          height: 70px !important;
+          width: 300px !important;
+        }
+
+        header p {
+          font-size: 0.75em;
+        }
+
+        .stat-label {
+          font-size: 0.75em;
+        }
+
+        .stat-value {
+          font-size: 1.2em;
+        }
+
+        button {
+          font-size: 0.8em;
+          padding: 8px 12px;
+        }
+
+        input,
+        select {
+          font-size: 14px;
+          padding: 8px;
+        }
+
+        table {
+          font-size: 0.65em;
+          display: block;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+
+        table thead th {
+          padding: 5px 4px;
+          font-size: 0.6em;
+        }
+
+        table tbody td {
+          padding: 4px 4px;
+          font-size: 0.65em;
+        }
+
+        #detailsTransactionHistory tr td {
+          padding: 4px 3px;
+        }
+
+        .login-box {
+          padding: 15px;
+        }
+
+        .login-box h1 {
+          font-size: 1.4em;
+        }
+
+        #actualChart {
+          height: 250px;
+          margin: 15px 10px;
+        }
+
+        .modal-content {
+          width: 98%;
+          max-height: 90vh;
+        }
+
+        .modal-header {
+          padding: 10px;
+          font-size: 1.1em;
+        }
+
+        .modal-body {
+          padding: 10px;
+          max-height: 75vh;
+          overflow-y: auto;
+          font-size: 0.85em;
+        }
+
+        .modal-footer {
+          padding: 10px;
+        }
+
+        .modal-footer button {
+          padding: 8px 12px;
+        }
+
+        /* Credit Details Modal specific styling */
+        #creditDetailsModal .modal-body {
+          max-height: 60vh;
+        }
+
+        #creditDetailsModal table {
+          font-size: 0.6em;
+        }
+
+        #creditDetailsModal table thead th {
+          padding: 4px 3px;
+          font-size: 0.55em;
+        }
+
+        #creditDetailsModal table tbody td {
+          padding: 3px 3px;
+          font-size: 0.6em;
+        }
+
+        /* Purchase section mobile layout */
+        .customers-section > div:nth-child(3) input {
+          font-size: 14px;
+          padding: 8px;
+        }
+
+        .customers-section > div:nth-child(3) button {
+          font-size: 0.8em;
+          padding: 8px 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sync Overlay -->
+    <div class="sync-overlay" id="syncOverlay">
+      <div class="sync-overlay-content">
+        <div class="sync-overlay-spinner"></div>
+        <div class="sync-overlay-text">Please wait...</div>
+      </div>
+    </div>
+
+    <div class="login-container" id="loginContainer">
+      <div class="login-box">
+        <img src="logo.png" alt="Dough N Dosa" style="height: 70px; width: 300px; object-fit: contain; margin-bottom: 20px;">
+        <p>Enter Access Code</p>
+        <input type="password" id="accessCode" class="login-input" placeholder="Enter code" maxlength="10" autofocus />
+        <button class="login-button" onclick="handleLogin()">Access</button>
+        <div class="login-error" id="loginError">Invalid access code</div>
+      </div>
+    </div>
+
+    <div class="user-info" id="userInfo" style="display: none;">
+      <span id="userRole">Owner</span>
+    </div>
+
+    <div class="top-right-controls">
+      <div class="sync-status synced" id="syncStatus">
+        <span class="sync-indicator"></span>
+        <span id="syncText">Ready</span>
+      </div>
+      <button class="logout-button" id="logoutBtn" onclick="handleLogout()" style="display: none;">Logout</button>
+    </div>
+
+    <div class="container">
+      <header>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">
+          <img id="logo" src="logo.png" alt="Dough N Dosa" style="height: 210px; width: 900px; object-fit: contain; max-width: 90%;">
+          <p style="margin: 0; font-size: 0.95em; opacity: 0.9;">Manage Your Restaurant Credit Transactions Easily</p>
+        </div>
+      </header>
+
+      <!-- Skeleton Loaders for Stats -->
+      <div class="stats" id="statsSkeletons">
+        <div class="skeleton-stat-box" id="skeletonStats1">
+          <div class="skeleton-stat-label"></div>
+          <div class="skeleton-stat-value"></div>
+        </div>
+        <div class="skeleton-stat-box" id="skeletonStats2">
+          <div class="skeleton-stat-label"></div>
+          <div class="skeleton-stat-value"></div>
+        </div>
+        <div class="skeleton-stat-box" id="skeletonStats3">
+          <div class="skeleton-stat-label"></div>
+          <div class="skeleton-stat-value"></div>
+        </div>
+      </div>
+
+      <!-- Actual Stat Boxes (hidden initially) -->
+      <div class="stats" id="statsContainer" style="display: none;">
+        <div class="stat-box">
+          <div class="stat-label">Total Customers</div>
+          <div class="stat-value" id="totalCustomers">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Total Amount Owed</div>
+          <div class="stat-value" id="totalOwed">₹0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Total Credit</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <div class="stat-value" id="totalCredit" style="color: #10b981;">₹0</div>
+            <div style="display: flex; gap: 8px;">
+              <button id="detailBtn" onclick="showCreditDetails()" style="display: none; background: #1B5E3F; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: 600;">Detail</button>
+              <button id="settleBtn" onclick="settleCredit()" style="display: none; background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: 600;">Settle</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Borrow Tracking Chart -->
+      <!-- Skeleton Loader for Chart -->
+      <div class="skeleton-chart" id="chartSkeleton">
+        <div class="skeleton-chart-title"></div>
+        <div class="skeleton-chart-bars"></div>
+      </div>
+
+      <!-- Actual Chart (hidden initially) -->
+      <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none;" id="actualChart">
+        <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 15px; color: #333;">Daily Total Amount Owed</div>
+        <div style="position: relative; height: 300px;">
+          <canvas id="dailyBorrowChart"></canvas>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input type="text" id="searchInput" placeholder="Search customer by name..." />
+        <button id="addCustomerBtn" onclick="openAddCustomerModal()">+ Add Customer</button>
+      </div>
+
+      <div class="customers-section">
+        <!-- Skeleton Loaders for Customer Cards (5 cards) -->
+        <div id="customerSkeletons">
+          <div class="skeleton-customer-card">
+            <div class="skeleton-customer-name"></div>
+            <div class="skeleton-customer-amount"></div>
+          </div>
+          <div class="skeleton-customer-card">
+            <div class="skeleton-customer-name"></div>
+            <div class="skeleton-customer-amount"></div>
+          </div>
+          <div class="skeleton-customer-card">
+            <div class="skeleton-customer-name"></div>
+            <div class="skeleton-customer-amount"></div>
+          </div>
+          <div class="skeleton-customer-card">
+            <div class="skeleton-customer-name"></div>
+            <div class="skeleton-customer-amount"></div>
+          </div>
+          <div class="skeleton-customer-card">
+            <div class="skeleton-customer-name"></div>
+            <div class="skeleton-customer-amount"></div>
+          </div>
+        </div>
+
+        <!-- Customer List View -->
+        <div id="customerListView" style="display: none;">
+          <div class="customers-list" id="customersList">
+            <div class="empty-state">
+              <div class="empty-state-icon">📋</div>
+              <h2>No customers yet</h2>
+              <p>Add your first customer to get started!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Details View -->
+        <div id="customerDetailsView" style="display: none; padding: 20px;">
+          <button onclick="goBackToList()" style="background: none; border: none; color: #1B5E3F; cursor: pointer; font-size: 1em; margin-bottom: 20px; font-weight: 600; padding: 0;">← Back to Customers</button>
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid #e0e0e0; padding-bottom: 15px;">
+            <div>
+              <h1 id="detailsTitle" style="margin: 0 0 6px 0; font-size: 1.5em; color: #333;"></h1>
+              <p id="detailsSinceDate" style="margin: 0; color: #666; font-size: 0.9em;"></p>
+            </div>
+            <span id="detailsStatus" class="customer-status" style="padding: 6px 12px; font-size: 0.85em;"></span>
+          </div>
+
+          <!-- Current Balance Section -->
+          <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="font-size: 0.8em; color: #666; text-transform: uppercase; margin-bottom: 8px; font-weight: 600;">Current Balance</div>
+            <div style="font-size: 1.8em; font-weight: bold; color: #1B5E3F; margin-bottom: 12px;" id="detailsCurrentAmount">₹0.00</div>
+            <div style="display: flex; gap: 10px;">
+              <button onclick="markPaidInFullDetails()" class="btn-success" style="flex: 1; padding: 10px; font-size: 0.9em;">✓ Mark Paid in Full</button>
+              <button onclick="openPartialPaymentDetailsModal()" class="btn-secondary" style="flex: 1; padding: 10px; font-size: 0.9em;">Record Partial Payment</button>
+            </div>
+          </div>
+
+          <!-- Add Purchase Section -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 0.9em; font-weight: bold; color: #333; text-transform: uppercase; margin-bottom: 12px;">Add a Purchase to the Tab</div>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; display: flex; gap: 8px; align-items: flex-end;">
+              <div class="form-group" style="flex: 0.9; margin: 0;">
+                <label style="font-size: 0.8em; display: block; margin-bottom: 3px;">Order #</label>
+                <input type="text" id="detailsOrderId" placeholder="ORD-001" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em;" />
+              </div>
+              <div class="form-group" style="flex: 0.9; margin: 0;">
+                <label style="font-size: 0.8em; display: block; margin-bottom: 3px;">Amount</label>
+                <input type="number" id="detailsPurchaseAmount" placeholder="0.00" min="0" step="0.01" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em;" />
+              </div>
+              <div class="form-group" style="flex: 0.9; margin: 0;">
+                <label style="font-size: 0.8em; display: block; margin-bottom: 3px;">Date</label>
+                <input type="date" id="detailsPurchaseDate" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em;" />
+              </div>
+              <button onclick="addPurchaseFromDetailsView()" style="background: linear-gradient(135deg, #1B5E3F 0%, #2D7A52 100%); color: white; border: none; padding: 6px 28px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85em; white-space: nowrap; flex: 1;">+ Add</button>
+            </div>
+          </div>
+
+          <!-- Transaction History -->
+          <div>
+            <div style="font-size: 0.9em; font-weight: bold; color: #333; text-transform: uppercase; margin-bottom: 12px;">Transaction History</div>
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #ddd;">
+                    <th style="text-align: left; padding: 10px; color: #666; font-size: 0.8em; font-weight: 600; text-transform: uppercase;">Date</th>
+                    <th style="text-align: left; padding: 10px; color: #666; font-size: 0.8em; font-weight: 600; text-transform: uppercase;">Order #</th>
+                    <th style="text-align: right; padding: 10px; color: #666; font-size: 0.8em; font-weight: 600; text-transform: uppercase;">Debit</th>
+                    <th style="text-align: right; padding: 10px; color: #666; font-size: 0.8em; font-weight: 600; text-transform: uppercase;">Credit</th>
+                    <th style="text-align: left; padding: 10px; color: #666; font-size: 0.8em; font-weight: 600; text-transform: uppercase;">Mode</th>
+                  </tr>
+                </thead>
+                <tbody id="detailsTransactionHistory"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add New Customer Modal -->
+    <div class="modal" id="addCustomerModal">
+      <div class="modal-content">
+        <div class="modal-header">Add New Customer</div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Customer Name</label>
+            <input type="text" id="addCustomerName" placeholder="Enter customer name" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeAddCustomerModal()">Cancel</button>
+          <button onclick="confirmAddCustomer()">Add Customer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Customer Details Modal -->
+    <div class="modal" id="customerModal">
+      <div class="modal-content" style="max-width: 800px;">
+        <div style="padding: 20px; border-bottom: 1px solid #e0e0e0;">
+          <button onclick="closeModal()" style="background: none; border: none; color: #1B5E3F; cursor: pointer; font-size: 1em; margin-bottom: 15px;">← Back</button>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h2 id="modalTitle" style="margin: 0; font-size: 1.8em; color: #333;"></h2>
+            <span id="modalStatus" class="customer-status" style="padding: 5px 15px;"></span>
+          </div>
+          <p id="modalSinceDate" style="margin: 0; color: #666; font-size: 0.95em;"></p>
+        </div>
+
+        <div class="modal-body" style="padding: 20px;">
+          <!-- Current Balance Section -->
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+            <div style="font-size: 0.85em; color: #666; text-transform: uppercase; margin-bottom: 8px;">Current Balance</div>
+            <div style="font-size: 2.2em; font-weight: bold; color: #1B5E3F; margin-bottom: 15px;" id="modalCurrentAmount">₹0.00</div>
+            <div style="display: flex; gap: 10px;">
+              <button onclick="markPaidInFull()" class="btn-success" style="flex: 1; padding: 12px;">✓ Mark Paid in Full</button>
+              <button onclick="openPartialPaymentModal()" class="btn-secondary" style="flex: 1; padding: 12px;">Record Partial Payment</button>
+            </div>
+          </div>
+
+          <!-- Add Purchase Section -->
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+            <div style="font-size: 0.95em; font-weight: bold; color: #333; text-transform: uppercase; margin-bottom: 15px;">Add a Purchase to the Tab</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div class="form-group">
+                <label>Order #</label>
+                <input type="text" id="modalOrderId" placeholder="ORD-001" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;" />
+              </div>
+              <div class="form-group">
+                <label>Amount</label>
+                <input type="number" id="modalPurchaseAmount" placeholder="0.00" min="0" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="modalPurchaseDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;" />
+            </div>
+            <div class="form-group">
+              <label>Item / Note</label>
+              <input type="text" id="modalPurchaseNote" placeholder="e.g., 2x Thali" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;" />
+            </div>
+            <button onclick="addPurchaseFromDetails()" style="background: linear-gradient(135deg, #1B5E3F 0%, #2D7A52 100%); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%;">+ Add to Tab</button>
+          </div>
+
+          <!-- Transaction History -->
+          <div>
+            <div style="font-size: 0.95em; font-weight: bold; color: #333; text-transform: uppercase; margin-bottom: 15px;">Transaction History</div>
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 2px solid #ddd;">
+                    <th style="text-align: left; padding: 12px; color: #666; font-size: 0.85em; font-weight: 600; text-transform: uppercase;">Date</th>
+                    <th style="text-align: left; padding: 12px; color: #666; font-size: 0.85em; font-weight: 600; text-transform: uppercase;">Order #</th>
+                    <th style="text-align: left; padding: 12px; color: #666; font-size: 0.85em; font-weight: 600; text-transform: uppercase;">Description</th>
+                    <th style="text-align: right; padding: 12px; color: #666; font-size: 0.85em; font-weight: 600; text-transform: uppercase;">Debit</th>
+                    <th style="text-align: right; padding: 12px; color: #666; font-size: 0.85em; font-weight: 600; text-transform: uppercase;">Credit</th>
+                  </tr>
+                </thead>
+                <tbody id="modalTransactionHistory"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal" id="paymentModal">
+      <div class="modal-content">
+        <div class="modal-header">Record Payment</div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label id="paymentCustomerLabel">Customer</label>
+            <div style="font-size: 1.2em; color: #1B5E3F; font-weight: bold" id="paymentCustomerName"></div>
+          </div>
+          <div class="form-group">
+            <label>Current Amount Owed</label>
+            <div style="font-size: 1.2em; color: #666; font-weight: bold" id="currentAmount"></div>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <div class="form-group" style="flex: 1; margin: 0;">
+              <label>Payment Amount</label>
+              <input type="number" id="paymentAmount" placeholder="Enter payment amount" min="0" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1em; -moz-appearance: textfield;" />
+              <style>
+                #paymentAmount::-webkit-inner-spin-button,
+                #paymentAmount::-webkit-outer-spin-button {
+                  -webkit-appearance: none;
+                  margin: 0;
+                }
+              </style>
+              <div id="paymentAmountError" style="color: #dc3545; font-size: 0.85em; margin-top: 4px; display: none;"></div>
+            </div>
+            <div class="form-group" style="flex: 1; margin: 0;">
+              <label>Payment Mode</label>
+              <select id="paymentMode" style="width: 100%; padding: 10px 30px 10px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1em; background: white; background-image: url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\" fill=\"%23666\"><path d=\"M8 11L3 6h10z\"/></svg>'); background-repeat: no-repeat; background-position: right 8px center; background-size: 12px; padding-right: 35px; appearance: none;">
+                <option value="">Select Mode</option>
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI</option>
+              </select>
+              <div id="paymentModeError" style="color: #dc3545; font-size: 0.85em; margin-top: 4px; display: none;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closePaymentModal()">Cancel</button>
+          <button class="btn-success" onclick="confirmPayment()">Record Payment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal" id="confirmationModal">
+      <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-header" id="confirmationTitle">Confirm Action</div>
+        <div class="modal-body">
+          <p id="confirmationMessage" style="font-size: 1em; color: #333; margin: 20px 0; line-height: 1.5;"></p>
+          <div id="settlementDetailsContainer" style="display: none; margin: 20px 0;">
+            <h3 style="font-size: 0.95em; color: #666; margin-bottom: 10px;">Settlement Details</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+              <thead>
+                <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+                  <th style="padding: 10px; text-align: left;">Date</th>
+                  <th style="padding: 10px; text-align: left;">Customer Name</th>
+                  <th style="padding: 10px; text-align: right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody id="settlementDetailsBody">
+              </tbody>
+            </table>
+            <div style="margin-top: 15px; padding: 10px; background: #f0f8f0; border-left: 4px solid #28a745; border-radius: 4px;">
+              <strong style="color: #28a745;">Total Credit to be Settled:</strong> <span id="totalSettlementAmount" style="font-size: 1.1em; color: #28a745; font-weight: bold;">₹0.00</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="gap: 15px;">
+          <button onclick="closeConfirmationModal()" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; flex: 1;">Cancel</button>
+          <button id="confirmationOkButton" onclick="handleConfirmationOk()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; flex: 1;">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Credit Details Modal -->
+    <div class="modal" id="creditDetailsModal">
+      <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-header">Credit Details</div>
+        <div class="modal-body">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.95em;">
+            <thead>
+              <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+                <th style="padding: 12px; text-align: left;">Date</th>
+                <th style="padding: 12px; text-align: left;">Customer Name</th>
+                <th style="padding: 12px; text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="creditDetailsBody">
+            </tbody>
+          </table>
+          <div style="margin-top: 15px; padding: 12px; background: #f0f8f0; border-left: 4px solid #28a745; border-radius: 4px;">
+            <strong style="color: #28a745;">Total Credit Across All Customers:</strong> <span id="totalCreditAmount" style="font-size: 1.1em; color: #28a745; font-weight: bold;">₹0.00</span>
+          </div>
+        </div>
+        <div class="modal-footer" style="gap: 10px;">
+          <button onclick="closeCreditDetailsModal()" style="background: #1B5E3F; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; flex: 1;">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Purchase Modal -->
+    <div class="modal" id="purchaseModal">
+      <div class="modal-content">
+        <div class="modal-header">Record Purchase</div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label id="purchaseCustomerLabel">Customer</label>
+            <div style="font-size: 1.2em; color: #1B5E3F; font-weight: bold" id="purchaseCustomerName"></div>
+          </div>
+          <div class="form-group">
+            <label>Current Amount Owed</label>
+            <div style="font-size: 1.2em; color: #666; font-weight: bold" id="currentAmountPurchase"></div>
+          </div>
+          <div class="form-group">
+            <label>Purchase Amount</label>
+            <input type="number" id="purchaseAmount" placeholder="Enter purchase amount" min="0" step="0.01" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closePurchaseModal()">Cancel</button>
+          <button class="btn-danger" onclick="confirmPurchase()">Add Purchase</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+      // ============================================
+      // GOOGLE SHEETS INTEGRATION
+      // ============================================
+      // IMPORTANT: Replace with your Google Apps Script Web App URL
+      // Get this from SETUP_GUIDE.md Step 3
+      const GOOGLE_APPS_SCRIPT_URL =
+        "https://script.google.com/macros/s/AKfycbxS9PLPzZqC2OYg6DC0YKn4UmRDryS8mridC6X0XHexsbHBDIsZpi2T79T6PUzjDvbz/exec";
+      let syncEnabled = false;
+
+      // Check if Google Apps Script URL is configured
+      function checkGoogleSheetsSetup() {
+        if (GOOGLE_APPS_SCRIPT_URL === "YOUR_DEPLOYMENT_URL_HERE") {
+          console.warn("Google Sheets not configured. Please follow SETUP_GUIDE.md");
+          syncEnabled = false;
+        } else {
+          syncEnabled = true;
+        }
+      }
+
+      // Update sync status UI
+      function updateSyncStatus(status, message) {
+        const statusEl = document.getElementById("syncStatus");
+        const textEl = document.getElementById("syncText");
+        const overlay = document.getElementById("syncOverlay");
+
+        statusEl.classList.remove("synced", "syncing", "error");
+
+        switch (status) {
+          case "syncing":
+            statusEl.classList.add("syncing");
+            textEl.textContent = "⟳ Syncing...";
+            overlay.classList.add("active");
+            break;
+          case "synced":
+            statusEl.classList.add("synced");
+            textEl.textContent = "✓ Synced";
+            overlay.classList.remove("active");
+            break;
+          case "error":
+            statusEl.classList.add("error");
+            textEl.textContent = "✗ Sync Error";
+            overlay.classList.remove("active");
+            console.error("Sync Error:", message);
+            break;
+        }
+      }
+
+      // Sync data to Google Sheets
+      async function syncToGoogleSheets() {
+        if (!syncEnabled) return;
+
+        updateSyncStatus("syncing");
+
+        try {
+          // Prepare customers data (without transactions)
+          const customersForSheet = {};
+          for (const [name, data] of Object.entries(customers)) {
+            customersForSheet[name] = {
+              date: data.date || new Date().toLocaleString(),
+              code: data.code || ""
+            };
+          }
+
+          // Save customers
+          const custResponse = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+              action: "saveCustomers",
+              customers: customersForSheet,
+            }),
+          });
+
+          if (!custResponse.ok) {
+            updateSyncStatus("error", "Network error");
+            return;
+          }
+
+          // Prepare and save transactions
+          const allTransactions = [];
+          for (const [name, data] of Object.entries(customers)) {
+            if (data.transactions && Array.isArray(data.transactions)) {
+              for (const trans of data.transactions) {
+                allTransactions.push({
+                  date: trans.date,
+                  customerName: name,
+                  customerCode: data.code || "",
+                  type: trans.type,
+                  amount: trans.amount,
+                  orderId: trans.orderId || "",
+                  paymentMode: trans.paymentMode || "",
+                  settlementPending: trans.settlementPending || 0,
+                  settled: trans.settled || 0
+                });
+              }
+            }
+          }
+
+          const transResponse = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+              action: "saveTransactions",
+              transactions: allTransactions,
+            }),
+          });
+
+          if (transResponse.ok) {
+            const result = await transResponse.json();
+            if (result.success) {
+              updateSyncStatus("synced");
+              console.log("✓ Data synced to Google Sheets");
+              // Reset status after 3 seconds
+              setTimeout(() => updateSyncStatus("synced"), 3000);
+            } else {
+              updateSyncStatus("error", result.error);
+            }
+          } else {
+            updateSyncStatus("error", "Network error");
+          }
+        } catch (error) {
+          updateSyncStatus("error", error.message);
+          console.error("Sync failed:", error);
+        }
+      }
+
+      // Load data from Google Sheets
+      async function loadFromGoogleSheets() {
+        if (!syncEnabled) return;
+
+        try {
+          const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: "POST",
+            body: JSON.stringify({
+              action: "getCustomers",
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.customers) {
+              // Merge customers (local takes precedence for codes)
+              const sheetCustomers = result.customers;
+              for (const [name, data] of Object.entries(sheetCustomers)) {
+                if (!customers[name]) {
+                  customers[name] = {
+                    totalAmount: 0,
+                    transactions: [],
+                    code: data.code || "",
+                    date: data.date || ""
+                  };
+                } else if (!customers[name].code) {
+                  customers[name].code = data.code || "";
+                  if (!customers[name].date) {
+                    customers[name].date = data.date || "";
+                  }
+                }
+              }
+
+              // Clear local transactions and load from Google Sheets (Google Sheets is source of truth)
+              for (const [name, data] of Object.entries(customers)) {
+                data.transactions = [];
+              }
+
+              // Load transactions from Google Sheets
+              if (result.transactions && Array.isArray(result.transactions)) {
+                for (const trans of result.transactions) {
+                  const custName = trans.customerName;
+                  if (customers[custName]) {
+                    customers[custName].transactions.push({
+                      date: trans.date,
+                      type: trans.type,
+                      amount: trans.amount,
+                      orderId: trans.orderId || "",
+                      paymentMode: trans.paymentMode || "",
+                      settlementPending: trans.settlementPending || 0,
+                      settled: trans.settled || 0
+                    });
+                  }
+                }
+              }
+
+              // Recalculate totals from transactions
+              for (const [name, data] of Object.entries(customers)) {
+                let totalPurchases = 0;
+                let totalSettlementPending = 0;
+                let totalSettled = 0;
+                if (data.transactions && Array.isArray(data.transactions)) {
+                  for (const trans of data.transactions) {
+                    if (trans.type === "purchase") {
+                      totalPurchases += trans.amount;
+                    } else if (trans.type === "payment") {
+                      totalSettlementPending += trans.settlementPending || 0;
+                      totalSettled += trans.settled || 0;
+                    }
+                  }
+                }
+                // Current Amount Owed = Purchases - Settlement Pending - Settled
+                customers[name].totalAmount = Math.max(0, totalPurchases - totalSettlementPending - totalSettled);
+              }
+
+              console.log("✓ Data loaded from Google Sheets");
+              console.log("Customers:", customers);
+              updateStats();
+            }
+          }
+        } catch (error) {
+          console.log("Could not load from Google Sheets (this is ok if not set up yet)");
+          console.log("Error:", error);
+        }
+      }
+
+      // Customer data structure
+      let customers = {};
+      let currentEditingCustomer = null;
+      let currentPaymentCustomer = null;
+      let currentPurchaseCustomer = null;
+      let confirmationCallback = null;
+      let userRole = null;
+      let currentCustomerCode = null;
+
+
+      // Login handling
+      function handleLogin() {
+        const code = document.getElementById("accessCode").value;
+        const errorDiv = document.getElementById("loginError");
+
+        if (!code) {
+          errorDiv.textContent = "Please enter an access code";
+          errorDiv.classList.add("show");
+          return;
+        }
+
+        console.log("Login attempt with code:", code);
+        console.log("Available customers:", Object.keys(customers));
+        console.log("Sync enabled:", syncEnabled);
+
+        // Check code against all customers fetched from Google Sheets (including Owner and Data Entry)
+        for (const [name, data] of Object.entries(customers)) {
+          if (data.code === code) {
+            console.log("Match found! Name:", name);
+            // Determine user role based on customer name
+            if (name === "Owner") {
+              userRole = "owner";
+              currentCustomerCode = null;
+            } else if (name === "Data Entry") {
+              userRole = "data-entry";
+              currentCustomerCode = null;
+            } else {
+              userRole = "customer";
+              currentCustomerCode = code;
+              currentEditingCustomer = name;
+            }
+
+            loginSuccess();
+
+            // Auto-redirect customer to their own page
+            if (userRole === "customer") {
+              setTimeout(() => {
+                window.location.hash = "#/" + encodeURIComponent(currentEditingCustomer);
+              }, 500);
+            }
+            return;
+          }
+        }
+
+        // Invalid code
+        console.warn("No match found for code:", code);
+        errorDiv.textContent = "Invalid access code";
+        errorDiv.classList.add("show");
+        setTimeout(() => errorDiv.classList.remove("show"), 3000);
+      }
+
+      function loginSuccess() {
+        sessionStorage.setItem("userRole", userRole);
+        sessionStorage.setItem("currentCustomerCode", currentCustomerCode);
+        document.getElementById("loginContainer").classList.add("hidden");
+        document.getElementById("userInfo").style.display = "block";
+        document.getElementById("logoutBtn").style.display = "block";
+        updateUserInfo();
+        init();
+      }
+
+      function handleLogout() {
+        sessionStorage.removeItem("userRole");
+        sessionStorage.removeItem("currentCustomerCode");
+        userRole = null;
+        currentCustomerCode = null;
+        currentEditingCustomer = null;
+        document.getElementById("loginContainer").classList.remove("hidden");
+        document.getElementById("userInfo").style.display = "none";
+        document.getElementById("logoutBtn").style.display = "none";
+        document.getElementById("accessCode").value = "";
+        window.location.hash = "";
+        document.getElementById("accessCode").focus();
+      }
+
+      function updateUserInfo() {
+        const userInfoDiv = document.getElementById("userInfo");
+        const userRoleEl = document.getElementById("userRole");
+        let roleText = "";
+        let roleClass = "";
+
+        if (userRole === "owner") {
+          roleText = "👑 Owner";
+          roleClass = "owner";
+          userInfoDiv.style.display = "block";
+        } else if (userRole === "data-entry") {
+          roleText = "👱‍♂️ Arjun";
+          roleClass = "data-entry";
+          userInfoDiv.style.display = "block";
+        } else if (userRole === "customer") {
+          // Hide entire user info div for customers
+          userInfoDiv.style.display = "none";
+          roleClass = "customer";
+        }
+
+        if (roleText) {
+          userRoleEl.textContent = roleText;
+        }
+        userInfoDiv.className = `user-info ${roleClass}`;
+      }
+
+      function checkUserAccess() {
+        const stored = sessionStorage.getItem("userRole");
+        if (stored) {
+          userRole = stored;
+          currentCustomerCode = sessionStorage.getItem("currentCustomerCode");
+          if (userRole === "customer" && currentCustomerCode) {
+            // Find customer by code
+            for (const [name, data] of Object.entries(customers)) {
+              if (data.code === currentCustomerCode) {
+                currentEditingCustomer = name;
+                break;
+              }
+            }
+          }
+          document.getElementById("loginContainer").classList.add("hidden");
+          document.getElementById("userInfo").style.display = "block";
+          document.getElementById("logoutBtn").style.display = "block";
+          updateUserInfo();
+          return true;
+        }
+        return false;
+      }
+
+      // Initialize app
+      function init() {
+        // Show container for all users
+        document.querySelector(".container").style.display = "block";
+
+        showLoadingSpinner();
+        checkGoogleSheetsSetup();
+        loadData();
+
+        const loadAndRender = () => {
+          // Only render customer list for Owner and Data Entry
+          if (userRole !== "customer") {
+            renderCustomers();
+            updateStats();
+            initDailyBorrowChart();
+          }
+          hideLoadingSpinner();
+          setupEventListeners();
+          updateSyncStatus("synced");
+
+          // Handle URL routing
+          window.addEventListener("hashchange", handleUrlChange);
+          handleUrlChange();
+
+          // Apply role-based UI restrictions
+          applyRoleBasedUI();
+
+          // For customers, redirect to their own page
+          if (userRole === "customer" && currentEditingCustomer) {
+            window.location.hash = "#/" + encodeURIComponent(currentEditingCustomer);
+          }
+        };
+
+        if (syncEnabled) {
+          loadFromGoogleSheets().then(() => {
+            loadAndRender();
+          });
+        } else {
+          loadAndRender();
+        }
+      }
+
+      // Apply role-based UI restrictions
+      function applyRoleBasedUI() {
+        const addCustomerBtn = document.getElementById("addCustomerBtn");
+        const settleBtn = document.getElementById("settleBtn");
+
+        // Hide Add Customer button for Data Entry users
+        if (userRole === "data-entry" && addCustomerBtn) {
+          addCustomerBtn.hidden = true;
+        }
+
+        // Show Settle button only for Owner
+        if (settleBtn) {
+          settleBtn.style.display = userRole === "owner" ? "block" : "none";
+        }
+
+        // Show Detail button only for Data Entry
+        const detailBtn = document.getElementById("detailBtn");
+        if (detailBtn) {
+          detailBtn.style.display = userRole === "data-entry" ? "block" : "none";
+        }
+
+        // For customer users, show only their own account
+        if (userRole === "customer") {
+          filterCustomerView();
+        } else {
+          // Show back button for Owner and Data Entry
+          const backButtons = document.querySelectorAll("button[onclick='goBackToList()']");
+          backButtons.forEach(btn => {
+            btn.hidden = false;
+          });
+        }
+      }
+
+      // Filter customer view to show only their own account
+      function filterCustomerView() {
+        const searchInput = document.getElementById("searchInput");
+        if (searchInput) {
+          searchInput.hidden = true;
+        }
+
+        const addCustomerBtn = document.getElementById("addCustomerBtn");
+        if (addCustomerBtn) {
+          addCustomerBtn.hidden = true;
+        }
+
+        const stats = document.querySelector(".stats");
+        if (stats) {
+          stats.style.display = "none";
+        }
+
+        const controls = document.querySelector(".controls");
+        if (controls) {
+          controls.style.display = "none";
+        }
+
+        // Hide chart for customers
+        const actualChart = document.getElementById("actualChart");
+        if (actualChart) {
+          actualChart.style.display = "none";
+        }
+
+        // Hide payment/purchase buttons and section for customers (but keep current balance & transaction history visible)
+        // Find and hide only the immediate parent of "Add a Purchase to the Tab" text
+        const allDivs = document.querySelectorAll("div");
+        allDivs.forEach(div => {
+          // Only hide if this is the DIRECT container with margin-bottom (the purchase section itself)
+          if (div.style.marginBottom === "20px" && div.textContent.includes("Add a Purchase to the Tab")) {
+            div.style.display = "none";
+          }
+        });
+
+        // Hide payment buttons only
+        const markPaidButtons = document.querySelectorAll("button[onclick*='markPaidInFull'], button[onclick*='openPartialPaymentModal'], button[onclick*='openPartialPaymentDetailsModal']");
+        markPaidButtons.forEach(btn => {
+          btn.style.display = "none";
+        });
+
+        // Hide back button for customers
+        const backButtons = document.querySelectorAll("button[onclick='goBackToList()']");
+        backButtons.forEach(btn => {
+          btn.hidden = true;
+        });
+      }
+
+      function showLoadingSpinner() {
+        const spinner = document.getElementById("loadingSpinner");
+        if (spinner) {
+          spinner.classList.add("active");
+        }
+      }
+
+      function hideLoadingSpinner() {
+        const spinner = document.getElementById("loadingSpinner");
+        if (spinner) {
+          spinner.classList.remove("active");
+        }
+      }
+
+      // Handle URL changes
+      function handleUrlChange() {
+        const hash = window.location.hash.substring(2);
+        
+        // If customer is logged in and tries to access another customer's page
+        if (userRole === "customer" && hash && hash.length > 0) {
+          const requestedCustomer = decodeURIComponent(hash);
+          if (requestedCustomer !== currentEditingCustomer) {
+            // Redirect back to their own page
+            window.location.hash = "#/" + encodeURIComponent(currentEditingCustomer);
+            return;
+          }
+        }
+        
+        if (hash && hash.length > 0) {
+          const customerName = decodeURIComponent(hash);
+          if (customers[customerName]) {
+            openCustomerModal(customerName);
+          }
+        } else {
+          // If customer tries to go back to list, redirect to their page
+          if (userRole === "customer" && currentEditingCustomer) {
+            window.location.hash = "#/" + encodeURIComponent(currentEditingCustomer);
+            return;
+          }
+          goBackToList();
+        }
+      }
+
+      // Setup event listeners
+      function setupEventListeners() {
+        document.getElementById("searchInput").addEventListener("input", function () {
+          renderCustomers(this.value);
+        });
+
+        document.getElementById("addCustomerName").addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            confirmAddCustomer();
+          }
+        });
+
+        document.getElementById("paymentAmount").addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            confirmPayment();
+          }
+        });
+
+        document.getElementById("purchaseAmount").addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            confirmPurchase();
+          }
+        });
+      }
+
+      // Open add customer modal
+      function openAddCustomerModal() {
+        document.getElementById("addCustomerName").value = "";
+        document.getElementById("addCustomerName").focus();
+        document.getElementById("addCustomerModal").classList.add("active");
+      }
+
+      // Close add customer modal
+      function closeAddCustomerModal() {
+        document.getElementById("addCustomerModal").classList.remove("active");
+        document.getElementById("addCustomerName").value = "";
+      }
+
+      // Confirm add customer
+      function confirmAddCustomer() {
+        const name = document.getElementById("addCustomerName").value.trim();
+
+        if (!name) {
+          alert("Please enter customer name");
+          return;
+        }
+
+        if (customers[name]) {
+          alert("Customer already exists!");
+          return;
+        }
+
+        // Generate unique 4-digit code
+        let code;
+        let isUnique = false;
+        while (!isUnique) {
+          code = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+          isUnique = !Object.values(customers).some(c => c.code === code);
+        }
+
+        customers[name] = {
+          totalAmount: 0,
+          transactions: [],
+          code: code,
+          date: new Date().toLocaleString(),
+        };
+
+        saveData();
+        renderCustomers();
+        closeAddCustomerModal();
+        alert(`Customer added! Access code: ${code}`);
+      }
+
+      // Open customer details view
+      function openCustomerModal(customerName) {
+        try {
+          currentEditingCustomer = customerName;
+          const customer = customers[customerName];
+
+          if (!customer) {
+            alert("Customer not found!");
+            return;
+          }
+
+          // Set header info
+          document.getElementById("detailsTitle").innerHTML = `${customerName} <span style="font-size: 0.8em; color: #1B5E3F; font-weight: normal;">(${customer.code})</span>`;
+          const status = customer.totalAmount === 0 ? "Settled" : "Unsettled";
+          const statusClass = customer.totalAmount === 0 ? "settled" : "unsettled";
+          document.getElementById("detailsStatus").textContent = status;
+          document.getElementById("detailsStatus").className = `customer-status ${statusClass}`;
+
+          // Set customer since date
+          const firstTransaction = customer.transactions.length > 0 ? customer.transactions[0].date : new Date().toLocaleString();
+          document.getElementById("detailsSinceDate").textContent = `Customer since ${firstTransaction}`;
+
+          // Set current amount
+          document.getElementById("detailsCurrentAmount").textContent = "₹" + customer.totalAmount.toFixed(2);
+
+          // Clear form fields
+          document.getElementById("detailsOrderId").value = "";
+          document.getElementById("detailsPurchaseAmount").value = "";
+          const today = new Date().toISOString().split("T")[0];
+          document.getElementById("detailsPurchaseDate").value = today;
+
+          // Populate transaction history table
+          const historyHTML =
+            customer.transactions.length > 0
+              ? customer.transactions
+                  .map(
+                    (t) => {
+                      const dateOnly = formatDateDDMonYY(t.date);
+                      let creditColor = "#666";
+                      if (t.type === "payment") {
+                        if (t.settlementPending && t.settlementPending > 0) {
+                          creditColor = "#ffc107"; // Yellow for Settlement Pending
+                        } else if (t.settled && t.settled > 0) {
+                          creditColor = "#28a745"; // Green for Settled
+                        }
+                      }
+                      return `
+                      <tr style="border-bottom: 1px solid #e0e0e0;">
+                          <td style="padding: 10px; color: #666;">${dateOnly}</td>
+                          <td style="padding: 10px; color: #666;">${t.orderId || "—"}</td>
+                          <td style="padding: 10px; text-align: right; color: ${t.type === "purchase" ? "#d9534f" : "#666"};">${t.type === "purchase" ? "₹" + t.amount.toFixed(2) : "—"}</td>
+                          <td style="padding: 10px; text-align: right; color: ${creditColor};">${t.type === "payment" ? "₹" + t.amount.toFixed(2) : "—"}</td>
+                          <td style="padding: 10px; color: #666;">${t.paymentMode || "—"}</td>
+                      </tr>
+                    `;
+                    }
+                  )
+                  .join("")
+              : '<tr><td colspan="5" style="padding: 15px; text-align: center; color: #999;">No transactions yet</td></tr>';
+
+          document.getElementById("detailsTransactionHistory").innerHTML = historyHTML;
+
+          // Switch views
+          const customerListView = document.getElementById("customerListView");
+          const customerDetailsView = document.getElementById("customerDetailsView");
+          const statsContainer = document.getElementById("statsContainer");
+          const controls = document.querySelector(".controls");
+          const actualChart = document.getElementById("actualChart");
+
+          if (customerListView) customerListView.style.display = "none";
+          if (customerDetailsView) customerDetailsView.style.display = "block";
+          if (statsContainer) statsContainer.style.display = "none";
+          if (controls) controls.style.display = "none";
+          if (actualChart) actualChart.style.display = "none";
+
+          // Update URL
+          window.history.pushState(null, "", "#/" + encodeURIComponent(customerName));
+
+          // Scroll to top
+          window.scrollTo(0, 0);
+        } catch (error) {
+          console.error("Error opening customer details:", error);
+          alert("Error: " + error.message);
+        }
+      }
+
+      // Go back to customer list
+      function goBackToList() {
+        // For customers, redirect to their own page instead
+        if (userRole === "customer" && currentEditingCustomer) {
+          window.location.hash = "#/" + encodeURIComponent(currentEditingCustomer);
+          return;
+        }
+
+        document.getElementById("customerListView").style.display = "block";
+        document.getElementById("customerDetailsView").style.display = "none";
+        document.getElementById("statsContainer").style.display = "grid";
+        document.querySelector(".controls").style.display = "flex";
+
+        // Show chart only for Owner and Data Entry
+        const actualChart = document.getElementById("actualChart");
+        if (actualChart && userRole !== "customer") {
+          actualChart.style.display = "block";
+        }
+
+        currentEditingCustomer = null;
+
+        // Update URL
+        window.history.pushState(null, "", "#");
+      }
+
+      // Close details view (go back to list)
+      function closeModal() {
+        goBackToList();
+      }
+
+      // Open confirmation modal
+      function openConfirmationModal(title, message, callback) {
+        document.getElementById("confirmationTitle").textContent = title;
+        document.getElementById("confirmationMessage").textContent = message;
+        confirmationCallback = callback;
+        document.getElementById("confirmationModal").classList.add("active");
+      }
+
+      // Close confirmation modal
+      function closeConfirmationModal() {
+        document.getElementById("confirmationModal").classList.remove("active");
+        confirmationCallback = null;
+      }
+
+      // Handle confirmation OK
+      function handleConfirmationOk() {
+        if (confirmationCallback) {
+          confirmationCallback();
+        }
+        closeConfirmationModal();
+      }
+
+      // Show Credit Details Modal
+      function showCreditDetails() {
+        const customerNames = Object.keys(customers).filter(name => name !== "Owner" && name !== "Data Entry");
+        const detailsBody = document.getElementById("creditDetailsBody");
+        const settlementTransactions = [];
+        let totalCredit = 0;
+
+        // Collect all settlement pending transactions
+        for (const custName of customerNames) {
+          const customer = customers[custName];
+          if (customer.transactions && Array.isArray(customer.transactions)) {
+            for (const trans of customer.transactions) {
+              if (trans.type === "payment" && trans.settlementPending && trans.settlementPending > 0) {
+                settlementTransactions.push({
+                  date: formatDateDDMonYY(trans.date),
+                  customerName: custName,
+                  code: customer.code || "—",
+                  amount: trans.settlementPending
+                });
+                totalCredit += trans.settlementPending;
+              }
+            }
+          }
+        }
+
+        // Populate table rows
+        const rows = settlementTransactions
+          .map(t => `
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 12px; color: #666;">${t.date}</td>
+              <td style="padding: 12px; color: #333;">${t.customerName}</td>
+              <td style="padding: 12px; text-align: right; color: #28a745; font-weight: bold;">₹${t.amount.toFixed(2)}</td>
+            </tr>
+          `)
+          .join("");
+
+        detailsBody.innerHTML = rows || '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">No settlement pending transactions</td></tr>';
+        document.getElementById("totalCreditAmount").textContent = "₹" + totalCredit.toFixed(2);
+
+        const modal = document.getElementById("creditDetailsModal");
+        modal.classList.add("active");
+      }
+
+      // Close Credit Details Modal
+      function closeCreditDetailsModal() {
+        const modal = document.getElementById("creditDetailsModal");
+        modal.classList.remove("active");
+      }
+
+      // Mark paid in full (from details view)
+      function markPaidInFullDetails() {
+        if (!currentEditingCustomer) return;
+
+        const customer = customers[currentEditingCustomer];
+        if (customer.totalAmount === 0) {
+          alert("Already settled!");
+          return;
+        }
+
+        const message = `Are you sure you want to mark ${currentEditingCustomer} as paid in full for ₹${customer.totalAmount.toFixed(2)}?`;
+
+        openConfirmationModal("Mark Paid in Full", message, function() {
+          const amount = customer.totalAmount;
+          customer.totalAmount = 0;
+          customer.transactions.push({
+            type: "payment",
+            amount: amount,
+            date: new Date().toLocaleString(),
+            settlementPending: amount,
+            settled: 0,
+          });
+
+          saveData();
+          updateStats();
+          openCustomerModal(currentEditingCustomer);
+          renderCustomers();
+        });
+      }
+
+      // Open partial payment modal from details view
+      function openPartialPaymentDetailsModal() {
+        if (!currentEditingCustomer) return;
+        currentPaymentCustomer = currentEditingCustomer;
+        openPaymentModal(currentPaymentCustomer);
+      }
+
+      // Add purchase from details view
+      function addPurchaseFromDetailsView() {
+        if (!currentEditingCustomer) return;
+
+        const amount = parseFloat(document.getElementById("detailsPurchaseAmount").value);
+        const orderId = document.getElementById("detailsOrderId").value.trim();
+        const date = document.getElementById("detailsPurchaseDate").value;
+
+        if (!amount || amount <= 0) {
+          alert("Please enter a valid amount");
+          return;
+        }
+
+        const customer = customers[currentEditingCustomer];
+        customer.totalAmount += amount;
+        customer.transactions.push({
+          type: "purchase",
+          amount: amount,
+          date: date ? new Date(date).toLocaleString() : new Date().toLocaleString(),
+          orderId: orderId,
+        });
+
+        saveData();
+        openCustomerModal(currentEditingCustomer);
+        renderCustomers();
+      }
+
+      // Open payment modal
+      function openPaymentModal(customerName) {
+        currentPaymentCustomer = customerName;
+        const customer = customers[customerName];
+
+        document.getElementById("paymentCustomerName").innerHTML = `${customerName} <span style="font-size: 0.85em; color: #1B5E3F;">(${customer.code})</span>`;
+        document.getElementById("currentAmount").textContent = "₹" + customer.totalAmount.toFixed(2);
+        document.getElementById("paymentAmount").value = "";
+        document.getElementById("paymentAmount").focus();
+
+        document.getElementById("paymentModal").classList.add("active");
+      }
+
+      // Close payment modal
+      function closePaymentModal() {
+        document.getElementById("paymentModal").classList.remove("active");
+        document.getElementById("paymentAmount").value = "";
+        currentPaymentCustomer = null;
+      }
+
+      // Confirm payment
+      function confirmPayment() {
+        const amount = parseFloat(document.getElementById("paymentAmount").value);
+        const paymentMode = document.getElementById("paymentMode").value;
+
+        // Clear previous errors
+        document.getElementById("paymentAmountError").style.display = "none";
+        document.getElementById("paymentModeError").style.display = "none";
+        document.getElementById("paymentAmountError").textContent = "";
+        document.getElementById("paymentModeError").textContent = "";
+
+        let hasError = false;
+
+        // Validate amount
+        if (!amount || amount <= 0) {
+          document.getElementById("paymentAmountError").textContent = "Please enter a valid amount";
+          document.getElementById("paymentAmountError").style.display = "block";
+          hasError = true;
+        }
+
+        // Validate payment mode
+        if (!paymentMode) {
+          document.getElementById("paymentModeError").textContent = "Please select a payment mode";
+          document.getElementById("paymentModeError").style.display = "block";
+          hasError = true;
+        }
+
+        if (hasError) {
+          return;
+        }
+
+        const customer = customers[currentPaymentCustomer];
+
+        if (amount > customer.totalAmount) {
+          document.getElementById("paymentAmountError").textContent = `Cannot exceed ₹${customer.totalAmount.toFixed(2)}`;
+          document.getElementById("paymentAmountError").style.display = "block";
+          return;
+        }
+
+        customer.totalAmount -= amount;
+        customer.transactions.push({
+          type: "payment",
+          amount: amount,
+          date: new Date().toLocaleString(),
+          paymentMode: paymentMode,
+          settlementPending: amount,
+          settled: 0,
+        });
+
+        saveData();
+        updateStats();
+        closePaymentModal();
+        openCustomerModal(currentEditingCustomer);
+      }
+
+      // Open purchase modal
+      function openPurchaseModal(customerName) {
+        currentPurchaseCustomer = customerName;
+        const customer = customers[customerName];
+
+        document.getElementById("purchaseCustomerName").textContent = customerName;
+        document.getElementById("currentAmountPurchase").textContent = "₹" + customer.totalAmount.toFixed(2);
+        document.getElementById("purchaseAmount").value = "";
+        document.getElementById("purchaseAmount").focus();
+
+        document.getElementById("purchaseModal").classList.add("active");
+      }
+
+      // Close purchase modal
+      function closePurchaseModal() {
+        document.getElementById("purchaseModal").classList.remove("active");
+        document.getElementById("purchaseAmount").value = "";
+        currentPurchaseCustomer = null;
+      }
+
+      // Confirm purchase
+      function confirmPurchase() {
+        const amount = parseFloat(document.getElementById("purchaseAmount").value);
+
+        if (!amount || amount <= 0) {
+          alert("Please enter a valid amount");
+          return;
+        }
+
+        const customer = customers[currentPurchaseCustomer];
+
+        customer.totalAmount += amount;
+        customer.transactions.push({
+          type: "purchase",
+          amount: amount,
+          date: new Date().toLocaleString(),
+        });
+
+        saveData();
+        closePurchaseModal();
+        renderCustomers();
+      }
+
+      // Delete customer
+      function deleteCustomer(customerName) {
+        if (confirm(`Are you sure you want to delete ${customerName}? This action cannot be undone.`)) {
+          delete customers[customerName];
+          saveData();
+          renderCustomers();
+        }
+      }
+
+      // Render customers list
+      function renderCustomers(searchTerm = "") {
+        const customersList = document.getElementById("customersList");
+        const filteredCustomers = Object.keys(customers).filter((name) =>
+          name !== "Owner" && name !== "Data Entry" && name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        if (filteredCustomers.length === 0) {
+          customersList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <h2>${searchTerm ? "No customers found" : "No customers yet"}</h2>
+                        <p>${searchTerm ? "Try a different search term" : "Add your first customer to get started!"}</p>
+                    </div>
+                `;
+        } else {
+          customersList.innerHTML = filteredCustomers
+            .map((name) => {
+              const customer = customers[name];
+              const status = customer.totalAmount === 0 ? "Settled" : "Unsettled";
+              const statusClass = customer.totalAmount === 0 ? "settled" : "unsettled";
+              const lastTransaction = customer.transactions.length > 0
+                ? customer.transactions[customer.transactions.length - 1].date
+                : new Date().toLocaleString();
+
+              return `
+                        <div class="customer-card" data-customer-name="${name}" style="cursor: pointer; user-select: none;">
+                            <div class="customer-info">
+                                <div class="customer-header">
+                                    <h3 class="customer-name">${name} <span style="font-size: 0.85em; color: #1B5E3F; font-weight: normal;">(${customer.code})</span></h3>
+                                    <span class="customer-status ${statusClass}">${status}</span>
+                                </div>
+                            </div>
+                            <div class="customer-card-right">
+                                <div class="customer-amount ${customer.totalAmount > 0 ? 'amount-debt' : 'amount-settled'}">₹${customer.totalAmount.toFixed(2)}</div>
+                            </div>
+                        </div>
+                    `;
+            })
+            .join("");
+        }
+
+        // Add click event listeners to customer cards
+        setTimeout(function() {
+          const cards = document.querySelectorAll(".customer-card");
+          console.log("Found " + cards.length + " customer cards");
+          cards.forEach((card) => {
+            card.addEventListener("click", function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              const customerName = this.getAttribute("data-customer-name");
+              console.log("Card clicked: " + customerName);
+              if (customerName) {
+                openCustomerModal(customerName);
+              }
+            });
+          });
+        }, 100);
+
+        updateStats();
+      }
+
+      // Format date to DD-mon-YY format (e.g., "11-Sep-26")
+      function formatDateDDMonYY(dateString) {
+        if (!dateString) return "N/A";
+
+        // Handle both ISO format and regular date strings
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+          return dateString.split(",")[0];
+        }
+
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = months[date.getMonth()];
+        const year = String(date.getFullYear()).slice(-2);
+
+        return `${day}-${month}-${year}`;
+      }
+
+      // Update statistics
+      function updateStats() {
+        const customerNames = Object.keys(customers).filter(name => name !== "Owner" && name !== "Data Entry");
+        const totalCustomers = customerNames.length;
+
+        // Calculate totals from all transactions
+        let totalPurchases = 0;
+        let totalSettlementPending = 0;
+        let totalSettled = 0;
+
+        for (const custName of customerNames) {
+          const customer = customers[custName];
+          if (customer.transactions && Array.isArray(customer.transactions)) {
+            for (const trans of customer.transactions) {
+              if (trans.type === "purchase") {
+                totalPurchases += trans.amount;
+              } else if (trans.type === "payment") {
+                totalSettlementPending += trans.settlementPending || 0;
+                totalSettled += trans.settled || 0;
+              }
+            }
+          }
+        }
+
+        // Total Amount Owed = purchases - settlement pending - settled (net amount after collected credit)
+        const totalOwed = Math.max(0, totalPurchases - totalSettlementPending - totalSettled);
+        // Total Credit = only settlement pending (money collected but not yet settled)
+        const totalCredit = totalSettlementPending;
+
+        document.getElementById("totalCustomers").textContent = totalCustomers;
+        document.getElementById("totalOwed").textContent = "₹" + totalOwed.toFixed(2);
+        document.getElementById("totalCredit").textContent = "₹" + totalCredit.toFixed(2);
+      }
+
+      // Settle credit - open confirmation modal
+      function settleCredit() {
+        document.getElementById("confirmationMessage").textContent = "Are you sure you want to settle all credits? This will clear all payment transactions and cannot be undone.";
+
+        // Collect all payment transactions with settlement pending
+        const customerNames = Object.keys(customers).filter(name => name !== "Owner" && name !== "Data Entry");
+        const settlementTransactions = [];
+        let totalSettlementAmount = 0;
+
+        for (const custName of customerNames) {
+          const customer = customers[custName];
+          if (customer.transactions && Array.isArray(customer.transactions)) {
+            for (const trans of customer.transactions) {
+              if (trans.type === "payment" && trans.settlementPending && trans.settlementPending > 0) {
+                settlementTransactions.push({
+                  date: formatDateDDMonYY(trans.date),
+                  customerName: custName,
+                  amount: trans.settlementPending
+                });
+                totalSettlementAmount += trans.settlementPending;
+              }
+            }
+          }
+        }
+
+        // Populate settlement details table
+        const detailsContainer = document.getElementById("settlementDetailsContainer");
+        const detailsBody = document.getElementById("settlementDetailsBody");
+        const totalAmountEl = document.getElementById("totalSettlementAmount");
+
+        if (settlementTransactions.length > 0) {
+          detailsBody.innerHTML = settlementTransactions
+            .map(t => `
+              <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 10px; color: #666;">${t.date}</td>
+                <td style="padding: 10px; color: #666;">${t.customerName}</td>
+                <td style="padding: 10px; text-align: right; color: #28a745; font-weight: bold;">₹${t.amount.toFixed(2)}</td>
+              </tr>
+            `)
+            .join("");
+          totalAmountEl.textContent = "₹" + totalSettlementAmount.toFixed(2);
+          detailsContainer.style.display = "block";
+        } else {
+          detailsContainer.style.display = "none";
+        }
+
+        // Update No button (red)
+        const cancelButton = document.querySelector('#confirmationModal .modal-footer button:first-child');
+        cancelButton.textContent = "No";
+        cancelButton.style.background = "#dc3545"; // Red for No
+        cancelButton.onclick = function() {
+          closeConfirmationModal();
+        };
+
+        // Update Yes button (green)
+        const okButton = document.getElementById("confirmationOkButton");
+        okButton.textContent = "Yes";
+        okButton.style.background = "#28a745"; // Green for Yes
+
+        // Set new handler
+        okButton.onclick = function() {
+          // Move all settlement pending amounts to settled
+          for (const custName of customerNames) {
+            const customer = customers[custName];
+            if (customer.transactions && Array.isArray(customer.transactions)) {
+              for (const trans of customer.transactions) {
+                if (trans.type === "payment" && trans.settlementPending) {
+                  // Move pending to settled
+                  trans.settled = (trans.settled || 0) + trans.settlementPending;
+                  trans.settlementPending = 0;
+                }
+              }
+            }
+          }
+
+          // Recalculate each customer's balance based on settled payments
+          for (const custName of customerNames) {
+            const customer = customers[custName];
+            let totalPurchases = 0;
+            let totalSettled = 0;
+            if (customer.transactions && Array.isArray(customer.transactions)) {
+              for (const trans of customer.transactions) {
+                if (trans.type === "purchase") {
+                  totalPurchases += trans.amount;
+                } else if (trans.type === "payment") {
+                  totalSettled += trans.settled || 0;
+                }
+              }
+            }
+            customer.totalAmount = Math.max(0, totalPurchases - totalSettled);
+          }
+
+          saveData();
+          updateStats();
+          closeConfirmationModal();
+        };
+
+        const modal = document.getElementById("confirmationModal");
+        modal.classList.add("active");
+      }
+
+      // Format date to short format (e.g., "10 Sept")
+      function formatDateShort(dateStr) {
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"];
+
+        // Handle format like "9/9/2026" or "Wed Sep 09 2026 05:30:00 GMT+0530"
+        let day, month;
+
+        if (dateStr.includes("/")) {
+          // Format: "9/9/2026"
+          const parts = dateStr.split("/");
+          month = parseInt(parts[0]) - 1;
+          day = parts[1];
+        } else if (dateStr.includes("Sep") || dateStr.includes("Jan") || dateStr.includes("Feb")) {
+          // Format: "Wed Sep 09 2026 05:30:00 GMT+0530"
+          const dateObj = new Date(dateStr);
+          if (!isNaN(dateObj.getTime())) {
+            day = dateObj.getDate().toString();
+            month = dateObj.getMonth();
+          } else {
+            return dateStr;
+          }
+        } else {
+          return dateStr;
+        }
+
+        return day + " " + months[month];
+      }
+
+      // Normalize date to YYYY-MM-DD format
+      function normalizeDateToKey(dateStr) {
+        let date;
+
+        // Handle format like "9/9/2026"
+        if (dateStr.includes("/")) {
+          const parts = dateStr.split("/");
+          const month = parts[0].padStart(2, "0");
+          const day = parts[1].padStart(2, "0");
+          const year = parts[2];
+          return `${year}-${month}-${day}`;
+        }
+
+        // Handle full timestamp format
+        try {
+          date = new Date(dateStr);
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+          }
+        } catch (e) {}
+
+        return dateStr;
+      }
+
+      // Update daily borrow chart
+      function updateDailyBorrowChart() {
+        if (!window.dailyBorrowChart) return;
+
+        // Aggregate totals by normalized date
+        const dailyTotals = {};
+        const customerNames = Object.keys(customers).filter(name => name !== "Owner" && name !== "Data Entry");
+        let minDate = null;
+
+        for (const custName of customerNames) {
+          const customer = customers[custName];
+          if (customer.transactions && Array.isArray(customer.transactions)) {
+            for (const trans of customer.transactions) {
+              const normalizedDate = normalizeDateToKey(trans.date);
+              if (!dailyTotals[normalizedDate]) {
+                dailyTotals[normalizedDate] = 0;
+              }
+              if (trans.type === "purchase") {
+                dailyTotals[normalizedDate] += trans.amount;
+              } else if (trans.type === "payment") {
+                dailyTotals[normalizedDate] -= trans.amount;
+              }
+              // Track earliest date
+              if (!minDate || normalizedDate < minDate) {
+                minDate = normalizedDate;
+              }
+            }
+          }
+        }
+
+        // If no transactions, use current month
+        if (!minDate) {
+          const today = new Date();
+          const year = today.getFullYear();
+          const month = String(today.getMonth() + 1).padStart(2, "0");
+          minDate = `${year}-${month}-01`;
+        }
+
+        // Get year and month from earliest date
+        const [year, month] = minDate.split("-");
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // Create full month array with blank bars for no-transaction days
+        const chartData = [];
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateKey = `${year}-${month}-${String(day).padStart(2, "0")}`;
+          const dailyAmount = dailyTotals[dateKey] || 0;
+
+          chartData.push({
+            date: dateKey,
+            displayDate: formatDateShort(dateKey),
+            total: Math.max(0, dailyAmount)
+          });
+        }
+
+        // Update chart
+        window.dailyBorrowChart.data.labels = chartData.map(d => d.displayDate);
+        window.dailyBorrowChart.data.datasets[0].data = chartData.map(d => d.total);
+        window.dailyBorrowChart.update();
+      }
+
+      // Initialize daily borrow chart
+      function initDailyBorrowChart() {
+        const ctx = document.getElementById("dailyBorrowChart");
+        if (!ctx) return;
+
+        window.dailyBorrowChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: [],
+            datasets: [{
+              label: "Total Amount Owed",
+              data: [],
+              backgroundColor: "rgba(102, 126, 234, 0.8)",
+              borderColor: "rgba(102, 126, 234, 1)",
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: "top"
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function(value) {
+                    return "₹" + value.toFixed(2);
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        updateDailyBorrowChart();
+      }
+
+      // Save data to Google Sheets only (no localStorage)
+      function saveData() {
+        // Auto-sync to Google Sheets
+        if (syncEnabled) {
+          syncToGoogleSheets();
+        }
+      }
+
+      // Load data from Google Sheets only (no localStorage)
+      function loadData() {
+        // Start with empty customers - will load from Google Sheets
+        customers = {};
+      }
+
+      // Show loading spinner and skeletons
+      function showLoadingSpinner() {
+        const loadingSpinner = document.getElementById("loadingSpinner");
+        if (loadingSpinner) {
+          loadingSpinner.style.display = "flex";
+        }
+      }
+
+      // Populate skeleton with actual data while loading
+      function populateSkeletonsWithData() {
+        // Update stat skeletons with actual values
+        const totalCustomers = Object.keys(customers).filter(name => name !== "Owner" && name !== "Data Entry").length;
+
+        // Calculate totals from all transactions
+        let totalPurchases = 0;
+        let totalSettlementPending = 0;
+        let totalSettled = 0;
+
+        for (const custName of Object.keys(customers)) {
+          if (custName !== "Owner" && custName !== "Data Entry") {
+            const customer = customers[custName];
+            if (customer.transactions && Array.isArray(customer.transactions)) {
+              for (const trans of customer.transactions) {
+                if (trans.type === "purchase") {
+                  totalPurchases += trans.amount;
+                } else if (trans.type === "payment") {
+                  totalSettlementPending += trans.settlementPending || 0;
+                  totalSettled += trans.settled || 0;
+                }
+              }
+            }
+          }
+        }
+
+        const totalOwed = totalPurchases - totalSettled;
+        const totalCredit = totalSettlementPending;
+
+        // Update skeleton boxes with data
+        const skeletonStats = [
+          { id: "skeletonStats1", label: "TOTAL CUSTOMERS", value: totalCustomers },
+          { id: "skeletonStats2", label: "TOTAL AMOUNT OWED", value: "₹" + totalOwed.toFixed(2) },
+          { id: "skeletonStats3", label: "TOTAL CREDIT", value: "₹" + totalCredit.toFixed(2) }
+        ];
+
+        skeletonStats.forEach(stat => {
+          const skeleton = document.getElementById(stat.id);
+          if (skeleton) {
+            const label = skeleton.querySelector(".skeleton-stat-label");
+            const value = skeleton.querySelector(".skeleton-stat-value");
+            if (label) {
+              label.textContent = stat.label;
+              label.style.background = "transparent";
+              label.style.animation = "none";
+              label.style.color = "#666";
+              label.style.fontSize = "0.85em";
+              label.style.fontWeight = "600";
+              label.style.textTransform = "uppercase";
+              label.style.marginBottom = "5px";
+            }
+            if (value) {
+              value.textContent = stat.value;
+              value.style.background = "transparent";
+              value.style.animation = "none";
+              value.style.color = stat.id === "skeletonStats3" ? "#10b981" : "#1B5E3F";
+              value.style.fontSize = "1.8em";
+              value.style.fontWeight = "bold";
+            }
+          }
+        });
+      }
+
+      // Hide loading spinner and skeletons, show actual content
+      function hideLoadingSpinner() {
+        // Populate skeletons with data first
+        populateSkeletonsWithData();
+
+        // Hide stat skeletons, show actual stats after a brief delay (only for Owner/Data Entry)
+        setTimeout(() => {
+          const statsSkeletons = document.getElementById("statsSkeletons");
+          const statsContainer = document.getElementById("statsContainer");
+          if (statsSkeletons) statsSkeletons.style.display = "none";
+          if (statsContainer && userRole !== "customer") {
+            statsContainer.style.display = "flex";
+          }
+        }, 500);
+
+        // Hide chart skeleton, show actual chart (only for Owner/Data Entry)
+        const chartSkeleton = document.getElementById("chartSkeleton");
+        const actualChart = document.getElementById("actualChart");
+        if (chartSkeleton) chartSkeleton.style.display = "none";
+        if (actualChart && userRole !== "customer") {
+          actualChart.style.display = "block";
+        }
+
+        // Hide customer skeletons, show actual customer list
+        const customerSkeletons = document.getElementById("customerSkeletons");
+        const customerListView = document.getElementById("customerListView");
+        if (customerSkeletons) customerSkeletons.style.display = "none";
+        if (customerListView) customerListView.style.display = "block";
+      }
+
+      // Initialize on page load
+      window.addEventListener("DOMContentLoaded", function() {
+        // Check if Google Sheets is configured
+        checkGoogleSheetsSetup();
+
+        // Load data from localStorage first
+        loadData();
+        console.log("syncEnabled:", syncEnabled);
+        console.log("Current customers:", customers);
+
+        // Load from Google Sheets if enabled
+        if (syncEnabled) {
+          console.log("Loading from Google Sheets...");
+          loadFromGoogleSheets().then(() => {
+            console.log("Google Sheets data loaded. Updated customers:", customers);
+            if (!checkUserAccess()) {
+              document.getElementById("accessCode").focus();
+            } else {
+              init();
+            }
+          });
+        } else {
+          console.log("Google Sheets sync disabled, using localStorage only");
+          if (!checkUserAccess()) {
+            document.getElementById("accessCode").focus();
+          } else {
+            init();
+          }
+        }
+      });
+
+      // Initialize Google Sheets setup and load data immediately on page load
+      console.log("Page loaded - initializing...");
+      checkGoogleSheetsSetup();
+      console.log("checkGoogleSheetsSetup completed. syncEnabled:", syncEnabled);
+
+      // Load customer data from Google Sheets immediately on page load
+      // This ensures Owner and Data Entry credentials are available at login time
+      console.log("Calling loadFromGoogleSheets...");
+      loadFromGoogleSheets()
+        .then(() => {
+          console.log("✅ Data loaded successfully. Customers:", Object.keys(customers));
+        })
+        .catch(err => {
+          console.error("❌ Initial data load failed:", err);
+        });
+
+      // Handle Enter key for login and prevent form submission
+      document.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          // Allow Enter in access code field to login
+          if (e.target.id === "accessCode") {
+            e.preventDefault();
+            handleLogin();
+          } else if (e.target.tagName !== "TEXTAREA") {
+            e.preventDefault();
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
